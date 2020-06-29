@@ -151,4 +151,6 @@
 
 #include "RAJA/pattern/scan.hpp"
 
+#include "RAJA/util/PluginLinker.hpp"
+
 #endif  // closing endif for header file include guard
