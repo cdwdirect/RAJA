@@ -77,7 +77,7 @@ cmake_minimum_required(VERSION 3.9)
 if (ENABLE_CUDA)
   if (DEFINED CUDA_ARCH)
     if (CUDA_ARCH MATCHES "^sm_*")
-      if ("${CUDA_ARCH}" STRLESS "sm_35") 
+      if ("${CUDA_ARCH}" STRLESS "sm_35")
         message( FATAL_ERROR "RAJA requires minimum CUDA compute architecture of sm_35")
       endif()
     endif()
@@ -232,6 +232,18 @@ if (ENABLE_TBB)
     ${raja_depends}
     tbb)
 endif ()
+
+if (ENABLE_APOLLO)
+  set(raja_depends
+  ${raja_depends}
+  apollo)
+endif()
+
+if (ENABLE_APOLLO_CUDA)
+  set (raja_depends
+    ${raja_depends}
+    cuda)
+endif()
 
 if (NOT TARGET camp)
   set(EXTERNAL_CAMP_SOURCE_DIR "" CACHE FILEPATH "build with a specific external

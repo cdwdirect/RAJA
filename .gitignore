@@ -5,4 +5,5 @@
 *.gch
 build/
 build-*/
+install/
 /Debug/

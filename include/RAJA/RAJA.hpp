@@ -66,6 +66,11 @@
 
 #if defined(RAJA_ENABLE_CUDA)
 #include "RAJA/policy/cuda.hpp"
+#if defined(RAJA_ENABLE_APOLLO)
+#include "RAJA/policy/apollo_cuda.hpp"
+#elif defined(RAJA_ENABLE_APOLLO_CUDA)
+#include "RAJA/policy/apollo_cuda.hpp"
+#endif
 #endif
 
 #if defined(RAJA_ENABLE_HIP)
@@ -79,6 +84,11 @@
 #include "RAJA/policy/openmp_target.hpp"
 #endif
 #endif
+
+#if defined(RAJA_ENABLE_APOLLO)
+#include "RAJA/policy/apollo.hpp"
+#endif
+
 
 #include "RAJA/index/IndexSet.hpp"
 

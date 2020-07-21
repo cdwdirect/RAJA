@@ -1,0 +1,22 @@
+#!/bin/bash
+rm -rf ./build
+rm -rf ./install
+mkdir build
+mkdir install
+cd build
+#
+#   NOTE(chad): Unused...
+#       -Dcallpath_DIR=$HOME/src/callpath/install/share/cmake/callpath \
+#
+cmake   \
+        -DCMAKE_INSTALL_PREFIX=$HOME/src/raja/install \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DENABLE_CUDA=ON \
+        -DENABLE_OPENMP_TRACE=ON \
+        -DAPOLLO_DIR=$HOME/src/apollo/install \
+        -DENABLE_APOLLO=ON \
+        -DENABLE_APOLLO_CUDA=ON \
+        -Wno-dev \
+        ..
+#
+make -j 8 && make install && cd ..
