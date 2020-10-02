@@ -52,6 +52,7 @@
 #include "RAJA/policy/cuda/kernel/internal.hpp"
 
 #include "apollo/Apollo.h"
+#include "apollo/Exec.h"
 #include "apollo/Region.h"
 
 namespace RAJA {
@@ -128,9 +129,9 @@ int getDeviceMaxBlocks(int threadsPerBlock=1024)
 
 /*!
  * CUDA kernel launch policy where Apollo is responsible for selecting
- * the number of physical blocks and threads.
- */
-template <bool async0, size_t num_blocks, size_t num_threads>
+ * the number of phy#include "apollo/Exec.h"sical blocks and threads.
+ #include "apollo/Exec.h"*/
+#include "apollo/Exec.h"template <bool async0, size_t num_blocks, size_t num_threads>
 struct apollo_cuda_launch {};
 
 // NOTE: We are still in the RAJA namespace at this point.
