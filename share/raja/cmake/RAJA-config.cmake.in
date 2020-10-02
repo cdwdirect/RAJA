@@ -30,6 +30,11 @@
 #
 # That's all!
 #
+
+if (NOT DEFINED RAJA_INCLUDE_DIR)
+    set(RAJA_INCLUDE_DIR    @CMAKE_INSTALL_PREFIX@/include)
+endif()
+
 if (NOT RAJA_CONFIG_LOADED)
   set(RAJA_CONFIG_LOADED TRUE)
 

@@ -48,7 +48,7 @@
 #include "RAJA/policy/cuda/policy.hpp"
 #include "RAJA/policy/cuda/kernel.hpp"
 
-#include "RAJA/internal/LegacyCompatibility.hpp"
+// #include "RAJA/internal/LegacyCompatibility.hpp"
 #include "RAJA/policy/cuda/kernel/internal.hpp"
 
 #include "apollo/Apollo.h"
@@ -130,7 +130,7 @@ int getDeviceMaxBlocks(int threadsPerBlock=1024)
  * CUDA kernel launch policy where Apollo is responsible for selecting
  * the number of physical blocks and threads.
  */
-template <bool async0>
+template <bool async0, size_t num_blocks, size_t num_threads>
 struct apollo_cuda_launch {};
 
 // NOTE: We are still in the RAJA namespace at this point.
@@ -141,7 +141,7 @@ namespace statement
      * RAJA::kernel statements that launch an apollo_cuda kernel.
      */
     template <typename... EnclosedStmts>
-    using ApolloCudaKernel = CudaKernelExt<apollo_cuda_launch<false>, EnclosedStmts...>;
+    using ApolloCudaKernel = CudaKernelExt<apollo_cuda_launch<false, 0, 0>, EnclosedStmts...>;
 
 }  //end: namespace statement
 
@@ -149,32 +149,152 @@ namespace statement
 
 namespace internal
 {
+
+
 /*!
  * Helper class specialization for Apollo to set the properties for
  * this CUDA kernel invocation.
  */
-template<bool async0, typename StmtList, typename Data>
-struct CudaLaunchHelper<apollo_cuda_launch<async0>,StmtList,Data>
+template<bool async0, size_t num_blocks, size_t num_threads, typename StmtList, typename Data, typename Types>
+struct CudaLaunchHelper<apollo_cuda_launch<async0, num_blocks, num_threads>,StmtList,Data,Types>
 {
-
-    using executor_t = internal::cuda_statement_list_executor_t<StmtList, Data>;
+    using Self = CudaLaunchHelper;
+    using executor_t = internal::cuda_statement_list_executor_t<StmtList, Data, Types>;
 
     static constexpr bool async = async0;
-
 
     //NOTE: These functions are called by the CudaKernelExt class when this
     //      launch helper is passed to it.
 
-    inline static void
-    max_blocks_threads(
-            int shmem_size,
-            int &max_blocks,
-            int &max_threads)
-    {
-        max_threads = 1024; // = RAJA::apollo_cuda::internal::getDeviceMaxThreads();
-        max_blocks  = RAJA::apollo_cuda::internal::getDeviceMaxBlocks();
+    using kernelGetter_t = CudaKernelLauncherGetter<(num_threads <= 0) ? 0 : num_threads, Data, executor_t>;
 
+    inline static void recommended_blocks_threads(int shmem_size,
+            size_t &recommended_blocks, size_t &recommended_threads)
+    {
+        auto func = kernelGetter_t::get();
+
+        if (num_blocks <= 0) {
+
+            if (num_threads <= 0) {
+
+                //
+                // determine blocks at runtime
+                // determine threads at runtime
+                //
+                internal::cuda_occupancy_max_blocks_threads<Self>(
+                        func, shmem_size, recommended_blocks, recommended_threads);
+
+            } else {
+
+                //
+                // determine blocks at runtime
+                // threads determined at compile-time
+                //
+                recommended_threads = num_threads;
+
+                internal::cuda_occupancy_max_blocks<Self, num_threads>(
+                        func, shmem_size, recommended_blocks);
+
+            }
+
+        } else {
+
+            if (num_threads <= 0) {
+
+                //
+                // determine threads at runtime, unsure what use 1024
+                // this value may be invalid for kernels with high register pressure
+                //
+                recommended_threads = 1024;
+
+            } else {
+
+                //
+                // threads determined at compile-time
+                //
+                recommended_threads = num_threads;
+
+            }
+
+            //
+            // blocks determined at compile-time
+            //
+            recommended_blocks = num_blocks;
+
+        }
     }
+
+    inline static void max_threads(int RAJA_UNUSED_ARG(shmem_size), size_t &max_threads)
+    {
+        if (num_threads <= 0) {
+
+            //
+            // determine threads at runtime, unsure what use 1024
+            // this value may be invalid for kernels with high register pressure
+            //
+            max_threads = 1024;
+
+        } else {
+
+            //
+            // threads determined at compile-time
+            //
+            max_threads = num_threads;
+
+        }
+    }
+
+    inline static void max_blocks(int shmem_size,
+            size_t &max_blocks, size_t actual_threads)
+    {
+        auto func = kernelGetter_t::get();
+
+        if (num_blocks <= 0) {
+
+            //
+            // determine blocks at runtime
+            //
+            if (num_threads <= 0 ||
+                    num_threads != actual_threads) {
+
+                //
+                // determine blocks when actual_threads != num_threads
+                //
+                internal::cuda_occupancy_max_blocks<Self>(
+                        func, shmem_size, max_blocks, actual_threads);
+
+            } else {
+
+                //
+                // determine blocks when actual_threads == num_threads
+                //
+                internal::cuda_occupancy_max_blocks<Self, num_threads>(
+                        func, shmem_size, max_blocks);
+
+            }
+
+        } else {
+
+            //
+            // blocks determined at compile-time
+            //
+            max_blocks = num_blocks;
+
+        }
+    }
+
+
+    //NOTE(cdw): This is the old version of RAJA's method.
+    // inline static void
+    //max_blocks_threads(
+    //        int shmem_size,
+    //        int &max_blocks,
+    //        int &max_threads)
+    //{
+    //    max_threads = 1024; // = RAJA::apollo_cuda::internal::getDeviceMaxThreads();
+    //    max_blocks  = RAJA::apollo_cuda::internal::getDeviceMaxBlocks();
+
+    //}
 
     static void
     launch( Data const &data,
@@ -204,8 +324,8 @@ struct CudaLaunchHelper<apollo_cuda_launch<async0>,StmtList,Data>
         static int max_blocks  = RAJA::apollo_cuda::internal::getDeviceMaxBlocks();
 
         // TODO[cdw]: (Setup threads to be dynamically configurable?)
-        static constexpr int num_threads  = 1024;
-        int num_blocks   = launch_dims.num_blocks();
+        //static constexpr int num_threads  = 1024;
+        //int num_blocks   = launch_dims.num_blocks();
 
         // TODO[cdw]: (Extract the count of the number of elements from the data)
         //            Revisit this once things are working even without this,
@@ -236,10 +356,11 @@ struct CudaLaunchHelper<apollo_cuda_launch<async0>,StmtList,Data>
         apolloRegion->setFeature((float)num_elements);
         policy_index = apolloRegion->getPolicyIndex();
 
+        //TODO[cdw]: This stuff needs to get moved up into the Getter logic...
         if (policy_index == 0) {
-            num_blocks = RAJA::apollo_cuda::internal::getDeviceMaxBlocks();
+            //num_blocks = RAJA::apollo_cuda::internal::getDeviceMaxBlocks();
         } else {
-            num_blocks = block_size_opts[policy_index];
+            //num_blocks = block_size_opts[policy_index];
         }
 
         // TODO[cdw]: We're re-doing some work done by the CudaKernelExt statement,
