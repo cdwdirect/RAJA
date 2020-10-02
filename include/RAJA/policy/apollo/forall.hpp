@@ -54,6 +54,7 @@
 #include "RAJA/internal/fault_tolerance.hpp"
 
 #include "apollo/Apollo.h"
+#include "apollo/Exec.h"
 #include "apollo/Region.h"
 
 
@@ -83,7 +84,7 @@ namespace apollo
 template <typename Iterable, typename Func>
 RAJA_INLINE void forall_impl(const apollo_exec &, Iterable &&iter, Func &&loop_body)
 {
-    static Apollo         *apollo             = Apollo::instance();
+    static Apollo::Exec   *apollo             = Apollo::Exec::instance();
     static Apollo::Region *apolloRegion       = nullptr;
     static int             policy_index       = 0;
     static int             num_threads[POLICY_COUNT]   = { 0 };
@@ -96,26 +97,32 @@ RAJA_INLINE void forall_impl(const apollo_exec &, Iterable &&iter, Func &&loop_b
                 );
         // Set the range of thread counts we want to make available for
         // bootstrapping and use by this Apollo::Region.
-        num_threads[0] = apollo->ompDefaultNumThreads;
+        num_threads[0] = apollo->env.ompDefaultNumThreads;
         num_threads[1] = 1;
 
-        num_threads[2] = std::max(2, apollo->numThreadsPerProcCap);
-        num_threads[3] = std::min(32, std::max(2, apollo->numThreadsPerProcCap));
-        num_threads[4] = std::min(16, std::max(2, (int)(apollo->numThreadsPerProcCap * 0.75)));
-        num_threads[5] = std::min(8,  std::max(2, (int)(apollo->numThreadsPerProcCap * 0.50)));
-        num_threads[6] = std::min(4,  std::max(2, (int)(apollo->numThreadsPerProcCap * 0.25)));
+        // Use this apollo-derived number, which factors in the number of MPI
+        // processes that are co-located on this node, and the number of CPUs
+        // on this node, to avoid oversaturating CPUs because we assumed the
+        // common case of 1 MPI rank per node.
+        int threadCountForCPUSaturation = apollo->env.numThreadsPerCPUCap;
+
+        num_threads[2] = std::max(2, threadCountForCPUSaturation);
+        num_threads[3] = std::min(32, std::max(2, threadCountForCPUSaturation));
+        num_threads[4] = std::min(16, std::max(2, (int)(threadCountForCPUSaturation * 0.75)));
+        num_threads[5] = std::min(8,  std::max(2, (int)(threadCountForCPUSaturation * 0.50)));
+        num_threads[6] = std::min(4,  std::max(2, (int)(threadCountForCPUSaturation * 0.25)));
         num_threads[7] = 2;
-        num_threads[8] = std::max(2, apollo->numThreadsPerProcCap);
-        num_threads[9] = std::min(32, std::max(2, apollo->numThreadsPerProcCap));
-        num_threads[10] = std::min(16, std::max(2, (int)(apollo->numThreadsPerProcCap * 0.75)));
-        num_threads[11] = std::min(8,  std::max(2, (int)(apollo->numThreadsPerProcCap * 0.50)));
-        num_threads[12] = std::min(4,  std::max(2, (int)(apollo->numThreadsPerProcCap * 0.25)));
+        num_threads[8] = std::max(2, threadCountForCPUSaturation);
+        num_threads[9] = std::min(32, std::max(2, threadCountForCPUSaturation));
+        num_threads[10] = std::min(16, std::max(2, (int)(threadCountForCPUSaturation * 0.75)));
+        num_threads[11] = std::min(8,  std::max(2, (int)(threadCountForCPUSaturation * 0.50)));
+        num_threads[12] = std::min(4,  std::max(2, (int)(threadCountForCPUSaturation * 0.25)));
         num_threads[13] = 2;
-        num_threads[14] = std::max(2, apollo->numThreadsPerProcCap);
-        num_threads[15] = std::min(32, std::max(2, apollo->numThreadsPerProcCap));
-        num_threads[16] = std::min(16, std::max(2, (int)(apollo->numThreadsPerProcCap * 0.75)));
-        num_threads[17] = std::min(8,  std::max(2, (int)(apollo->numThreadsPerProcCap * 0.50)));
-        num_threads[18] = std::min(4,  std::max(2, (int)(apollo->numThreadsPerProcCap * 0.25)));
+        num_threads[14] = std::max(2, threadCountForCPUSaturation);
+        num_threads[15] = std::min(32, std::max(2, threadCountForCPUSaturation));
+        num_threads[16] = std::min(16, std::max(2, (int)(threadCountForCPUSaturation * 0.75)));
+        num_threads[17] = std::min(8,  std::max(2, (int)(threadCountForCPUSaturation * 0.50)));
+        num_threads[18] = std::min(4,  std::max(2, (int)(threadCountForCPUSaturation * 0.25)));
         num_threads[19] = 2;
 	}
 
@@ -145,7 +152,7 @@ RAJA_INLINE void forall_impl(const apollo_exec &, Iterable &&iter, Func &&loop_b
                 }
                 break;
             }
-        case 1: 
+        case 1:
             {
                 //std::cout << "Sequential" << std::endl;
                 using RAJA::internal::thread_privatize;

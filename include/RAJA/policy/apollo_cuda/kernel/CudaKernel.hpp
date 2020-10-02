@@ -131,7 +131,7 @@ int getDeviceMaxBlocks(int threadsPerBlock=1024)
  * CUDA kernel launch policy where Apollo is responsible for selecting
  * the number of phy#include "apollo/Exec.h"sical blocks and threads.
  #include "apollo/Exec.h"*/
-#include "apollo/Exec.h"template <bool async0, size_t num_blocks, size_t num_threads>
+template <bool async0, size_t num_blocks, size_t num_threads>
 struct apollo_cuda_launch {};
 
 // NOTE: We are still in the RAJA namespace at this point.
@@ -306,7 +306,7 @@ struct CudaLaunchHelper<apollo_cuda_launch<async0, num_blocks, num_threads>,Stmt
         static cudaEvent_t     time_start;
         static cudaEvent_t     time_stop;
         static float           time_exec_ms = 0.0;
-        static Apollo         *apollo             = Apollo::instance();
+        static Apollo::Exec   *apollo             = Apollo::Exec::instance();
         static Apollo::Region *apolloRegion       = nullptr;
 
         // TODO[cdw]: (Per-kernel maxThreads and maxBlocks, not per-device)
